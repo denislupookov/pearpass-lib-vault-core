@@ -45,6 +45,15 @@ export class PearpassVaultClient extends EventEmitter {
     }
   }
 
+  /**
+   * Normalizes password-like inputs (Buffer | Uint8Array | string) to base64.
+   * @param {Buffer | Uint8Array | string} password
+   * @returns {string}
+   */
+  _toBase64(password) {
+    return Buffer.from(password).toString('base64')
+  }
+
   _handleError(parsedRes) {
     const error = parsedRes?.error
 
@@ -102,13 +111,15 @@ export class PearpassVaultClient extends EventEmitter {
 
   /**
    * Initializes the vault.
-   * @param {string} encryptionKey - The encryption key to use.
+   * @param {Object} params
+   * @param {string | undefined} params.encryptionKey
+   * @param {string | undefined} params.hashedPassword
    * @returns {Promise<void>}
    */
-  async vaultsInit(encryptionKey) {
+  async vaultsInit({ encryptionKey, hashedPassword }) {
     return this._handleRequest({
       command: API.MASTER_VAULT_INIT,
-      data: { encryptionKey }
+      data: { encryptionKey, hashedPassword }
     })
   }
 
@@ -244,6 +255,61 @@ export class PearpassVaultClient extends EventEmitter {
   async resetFailedAttempts() {
     return this._handleRequest({
       command: API.RESET_FAILED_ATTEMPTS
+    })
+  }
+
+  /**
+   * Creates master password data (hash, salt, encrypted key) in the worklet.
+   * @param {Buffer | Uint8Array} password
+   * @returns {Promise<Object>}
+   */
+  async createMasterPassword(password) {
+    const passwordString = this._toBase64(password)
+    return this._handleRequest({
+      command: API.MASTER_PASSWORD_CREATE,
+      data: { password: passwordString }
+    })
+  }
+
+  /**
+   * Initializes vaults using the provided master password.
+   * @param {Buffer | Uint8Array} password
+   * @returns {Promise<Object>}
+   */
+  async initWithPassword(password) {
+    const passwordString = this._toBase64(password)
+    return this._handleRequest({
+      command: API.MASTER_PASSWORD_INIT_WITH_PASSWORD,
+      data: { password: passwordString }
+    })
+  }
+
+  /**
+   * Updates the master password by re-encrypting with a new password.
+   * @param {{ newPassword: Buffer | Uint8Array, currentPassword: Buffer | Uint8Array }} params
+   * @returns {Promise<Object>}
+   */
+  async updateMasterPassword({ newPassword, currentPassword }) {
+    const currentPasswordString = this._toBase64(currentPassword)
+    const newPasswordString = this._toBase64(newPassword)
+    return this._handleRequest({
+      command: API.MASTER_PASSWORD_UPDATE,
+      data: {
+        currentPassword: currentPasswordString,
+        newPassword: newPasswordString
+      }
+    })
+  }
+
+  /**
+   * Initializes vaults using provided encryption credentials.
+   * @param {{ ciphertext: string, nonce: string, hashedPassword: string }} params
+   * @returns {Promise<Object>}
+   */
+  async initWithCredentials({ ciphertext, nonce, hashedPassword }) {
+    return this._handleRequest({
+      command: API.MASTER_PASSWORD_INIT_WITH_CREDENTIALS,
+      data: { ciphertext, nonce, hashedPassword }
     })
   }
 

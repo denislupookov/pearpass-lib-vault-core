@@ -1,6 +1,9 @@
 import Autopass from 'autopass'
+import b4a from 'b4a'
+import BlindEncryptionSodium from 'blind-encryption-sodium'
 import Corestore from 'corestore'
 
+import { getHashedPassword } from './appDeps'
 import { getConfig } from './utils/swarm'
 
 export class PearPassPairer {
@@ -33,8 +36,17 @@ export class PearPassPairer {
 
     const conf = await getConfig(store)
 
+    const hashedPassword = await getHashedPassword()
+
+    if (!hashedPassword) {
+      throw new Error('Hashed password not found')
+    }
+
     const pair = Autopass.pair(store, invite, {
-      relayThrough: conf.current.blindRelays
+      relayThrough: conf.current.blindRelays,
+      blindEncryption: new BlindEncryptionSodium([
+        { key: b4a.alloc(32, hashedPassword, 'utf-8'), type: 0 }
+      ])
     })
     this.pair = pair
 

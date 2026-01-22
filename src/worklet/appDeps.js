@@ -1,6 +1,8 @@
 /** @typedef {import('bare')} */ /* global Bare */
 import Autopass from 'autopass'
+import b4a from 'b4a'
 import barePath from 'bare-path'
+import BlindEncryptionSodium from 'blind-encryption-sodium'
 import Corestore from 'corestore'
 
 import { getForbiddenRoots } from './getForbiddenRoots'
@@ -184,16 +186,19 @@ export const buildPath = (path) => {
 }
 
 /**
- * @param {string} path
- * @param {string | undefined} encryptionKey
- * @param {Object} coreStoreOptions
+ * @param {Object} params
+ * @param {string} params.path
+ * @param {string | undefined} params.encryptionKey
+ * @param {string | undefined} params.hashedPassword
+ * @param {Object} params.coreStoreOptions
  * @returns {Promise<Autopass>}
  */
-export const initInstance = async (
+export const initInstance = async ({
   path,
+  hashedPassword,
   encryptionKey,
   coreStoreOptions = {}
-) => {
+}) => {
   try {
     const fullPath = buildPath(path)
 
@@ -209,6 +214,11 @@ export const initInstance = async (
       encryptionKey: encryptionKey
         ? Buffer.from(encryptionKey, 'base64')
         : undefined,
+      blindEncryption: hashedPassword
+        ? new BlindEncryptionSodium([
+            { key: b4a.alloc(32, hashedPassword, 'utf-8'), type: 0 }
+          ])
+        : undefined,
       relayThrough: conf.current.blindRelays
     })
 
@@ -221,22 +231,79 @@ export const initInstance = async (
 }
 
 /**
- * @param {string} id
- * @param {string | undefined} encryptionKey
+ * @param {Object} params
+ * @param {string} params.path
+ * @param {string | undefined} params.encryptionKey
+ * @param {string} params.newHashedPassword
+ * @param {string} params.currentHashedPassword
+ * @param {Object} params.coreStoreOptions
  * @returns {Promise<Autopass>}
  */
-export const initActiveVaultInstance = async (
+export const initInstanceWithNewBlindEncryption = async ({
+  path,
+  encryptionKey,
+  newHashedPassword,
+  currentHashedPassword,
+  coreStoreOptions = {}
+}) => {
+  try {
+    if (!currentHashedPassword || !newHashedPassword) {
+      throw new Error('Old and new hashed passwords are required')
+    }
+
+    const fullPath = buildPath(path)
+
+    const store = new Corestore(fullPath, coreStoreOptions)
+
+    if (!store) {
+      throw new Error('Error creating store')
+    }
+
+    const conf = await getConfig(store)
+
+    const instance = new Autopass(store, {
+      encryptionKey: encryptionKey
+        ? Buffer.from(encryptionKey, 'base64')
+        : undefined,
+      blindEncryption: new BlindEncryptionSodium([
+        { key: b4a.alloc(32, currentHashedPassword, 'utf-8'), type: 0 },
+        { key: b4a.alloc(32, newHashedPassword, 'utf-8'), type: 1 }
+      ]),
+      relayThrough: conf.current.blindRelays
+    })
+
+    await instance.ready()
+
+    return instance
+  } catch (error) {
+    throw new Error(
+      `Error initializing instance with new blind encryption: ${error.message}`
+    )
+  }
+}
+
+/**
+ * @param {Object} params
+ * @param {string} params.id
+ * @param {string | undefined} params.encryptionKey
+ * @param {Object} params.coreStoreOptions
+ * @returns {Promise<Autopass>}
+ */
+export const initActiveVaultInstance = async ({
   id,
   encryptionKey,
   coreStoreOptions = {}
-) => {
+}) => {
   isActiveVaultInitialized = false
 
-  activeVaultInstance = await initInstance(
-    `vault/${id}`,
+  const hashedPassword = await getHashedPassword()
+
+  activeVaultInstance = await initInstance({
+    path: `vault/${id}`,
     encryptionKey,
+    hashedPassword,
     coreStoreOptions
-  )
+  })
 
   isActiveVaultInitialized = true
 
@@ -284,28 +351,67 @@ export const resetRateLimit = async () => {
 }
 
 /**
- * @param {string | undefined} encryptionKey
+ * @param {Object} params
+ * @param {string | undefined} params.encryptionKey
+ * @param {string | undefined} params.hashedPassword
+ * @param {Object} params.coreStoreOptions
  * @returns {Promise<void>}
  */
-export const vaultsInit = async (encryptionKey, coreStoreOptions = {}) => {
+export const masterVaultInit = async ({
+  encryptionKey,
+  hashedPassword,
+  coreStoreOptions = {}
+}) => {
   isVaultsInitialized = false
 
-  vaultsInstance = await initInstance('vaults', encryptionKey, coreStoreOptions)
+  vaultsInstance = await initInstance({
+    path: 'vaults',
+    encryptionKey,
+    hashedPassword,
+    coreStoreOptions
+  })
 
   isVaultsInitialized = true
 }
 
 /**
+ * @param {Object} params
+ * @param {string | undefined} params.encryptionKey
+ * @param {string} params.newHashedPassword
+ * @param {string} params.currentHashedPassword
+ * @param {Object} params.coreStoreOptions
+ * @returns {Promise<void>}
+ */
+export const masterVaultInitWithNewBlindEncryption = async ({
+  encryptionKey,
+  newHashedPassword,
+  currentHashedPassword,
+  coreStoreOptions = {}
+}) => {
+  isVaultsInitialized = false
+
+  vaultsInstance = await initInstanceWithNewBlindEncryption({
+    path: 'vaults',
+    encryptionKey,
+    newHashedPassword,
+    currentHashedPassword,
+    coreStoreOptions
+  })
+
+  isVaultsInitialized = true
+}
+
+/**
+ * @param {Object} coreStoreOptions
  * @returns {Promise<void>}
  */
 export const encryptionInit = async (coreStoreOptions = {}) => {
   isEncryptionInitialized = false
 
-  encryptionInstance = await initInstance(
-    'encryption',
-    undefined,
+  encryptionInstance = await initInstance({
+    path: 'encryption',
     coreStoreOptions
-  )
+  })
 
   isEncryptionInitialized = true
 }
@@ -602,7 +708,10 @@ export const restartActiveVault = async () => {
     await closeActiveVaultInstance()
   }
 
-  await initActiveVaultInstance(lastActiveVaultId, lastActiveVaultEncryptionKey)
+  await initActiveVaultInstance({
+    id: lastActiveVaultId,
+    encryptionKey: lastActiveVaultEncryptionKey
+  })
 
   if (lastOnUpdateCallback) {
     await initListener({
@@ -744,4 +853,9 @@ export const removeAllBlindMirrors = async () => {
   )
 
   await vaultRemove('mirror-metadata')
+}
+
+export const getHashedPassword = async () => {
+  const masterEncryption = await vaultsGet('masterEncryption')
+  return masterEncryption?.hashedPassword
 }

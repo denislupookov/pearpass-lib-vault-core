@@ -1,6 +1,7 @@
 import EventEmitter from 'events'
 
 import { PearpassVaultClient } from './index'
+import { API } from '../worklet/api'
 
 jest.mock('bare-rpc', () =>
   jest.fn().mockImplementation(() => ({
@@ -45,6 +46,14 @@ jest.mock('../worklet/api', () => ({
     PAIR_ACTIVE_VAULT: 'PAIR_ACTIVE_VAULT',
     CANCEL_PAIR_ACTIVE_VAULT: 'CANCEL_PAIR_ACTIVE_VAULT',
     INIT_LISTENER: 'INIT_LISTENER',
+    MASTER_PASSWORD_STATUS: 'MASTER_PASSWORD_STATUS',
+    RECORD_FAILED_MASTER_PASSWORD: 'RECORD_FAILED_MASTER_PASSWORD',
+    RESET_FAILED_ATTEMPTS: 'RESET_FAILED_ATTEMPTS',
+    MASTER_PASSWORD_CREATE: 'MASTER_PASSWORD_CREATE',
+    MASTER_PASSWORD_INIT_WITH_PASSWORD: 'MASTER_PASSWORD_INIT_WITH_PASSWORD',
+    MASTER_PASSWORD_UPDATE: 'MASTER_PASSWORD_UPDATE',
+    MASTER_PASSWORD_INIT_WITH_CREDENTIALS:
+      'MASTER_PASSWORD_INIT_WITH_CREDENTIALS',
     ENCRYPTION_INIT: 'ENCRYPTION_INIT',
     ENCRYPTION_GET_STATUS: 'ENCRYPTION_GET_STATUS',
     ENCRYPTION_GET: 'ENCRYPTION_GET',
@@ -82,6 +91,13 @@ jest.mock('../worklet/api', () => ({
     PAIR_ACTIVE_VAULT: 'PAIR_ACTIVE_VAULT',
     CANCEL_PAIR_ACTIVE_VAULT: 'CANCEL_PAIR_ACTIVE_VAULT',
     INIT_LISTENER: 'INIT_LISTENER',
+    MASTER_PASSWORD_STATUS: 'MASTER_PASSWORD_STATUS',
+    RECORD_FAILED_MASTER_PASSWORD: 'RECORD_FAILED_MASTER_PASSWORD',
+    RESET_FAILED_ATTEMPTS: 'RESET_FAILED_ATTEMPTS',
+    MASTER_PASSWORD_CREATE: 'MASTER_PASSWORD_CREATE',
+    MASTER_PASSWORD_INIT_WITH_PASSWORD: 'MASTER_PASSWORD_INIT_WITH_PASSWORD',
+    MASTER_PASSWORD_UPDATE: 'MASTER_PASSWORD_UPDATE',
+    MASTER_PASSWORD_DERIVE_HASH: 'MASTER_PASSWORD_DERIVE_HASH',
     ENCRYPTION_INIT: 'ENCRYPTION_INIT',
     ENCRYPTION_GET_STATUS: 'ENCRYPTION_GET_STATUS',
     ENCRYPTION_GET: 'ENCRYPTION_GET',
@@ -160,6 +176,21 @@ describe('PearpassVaultClient', () => {
     await expect(client.initListener({ vaultId: 'id' })).resolves.toBe(
       'mockData'
     )
+    await expect(client.getMasterPasswordStatus()).resolves.toBe('mockData')
+    await expect(client.recordFailedMasterPassword()).resolves.toBe('mockData')
+    await expect(client.resetFailedAttempts()).resolves.toBe('mockData')
+    await expect(client.createMasterPassword('pw')).resolves.toBe('mockData')
+    await expect(client.initWithPassword('pw')).resolves.toBe('mockData')
+    await expect(
+      client.updateMasterPassword({ newPassword: 'np', currentPassword: 'cp' })
+    ).resolves.toBe('mockData')
+    await expect(
+      client.initWithCredentials({
+        ciphertext: 'ct',
+        nonce: 'n',
+        hashedPassword: 'hp'
+      })
+    ).resolves.toBe('mockData')
     await expect(client.encryptionInit()).resolves.toBe('mockData')
     await expect(client.encryptionGetStatus()).resolves.toBe('mockData')
     await expect(client.encryptionGet('key')).resolves.toBe('mockData')
@@ -184,6 +215,38 @@ describe('PearpassVaultClient', () => {
     await expect(client.encryptionClose()).resolves.toBe('mockData')
     await expect(client.closeAllInstances()).resolves.toBe('mockData')
     await expect(client.activeVaultRemoveFile('key')).resolves.toBe('mockData')
+  })
+
+  it('base64-encodes master password inputs before sending', async () => {
+    const handleSpy = jest
+      .spyOn(client, '_handleRequest')
+      .mockResolvedValue('ok')
+
+    const bytes = Uint8Array.from([1, 2, 3])
+    const expected = Buffer.from(bytes).toString('base64')
+
+    await client.createMasterPassword(bytes)
+    expect(handleSpy).toHaveBeenCalledWith({
+      command: API.MASTER_PASSWORD_CREATE,
+      data: { password: expected }
+    })
+
+    await client.initWithPassword(bytes)
+    expect(handleSpy).toHaveBeenCalledWith({
+      command: API.MASTER_PASSWORD_INIT_WITH_PASSWORD,
+      data: { password: expected }
+    })
+
+    await client.updateMasterPassword({
+      newPassword: bytes,
+      currentPassword: bytes
+    })
+    expect(handleSpy).toHaveBeenCalledWith({
+      command: API.MASTER_PASSWORD_UPDATE,
+      data: { currentPassword: expected, newPassword: expected }
+    })
+
+    handleSpy.mockRestore()
   })
 
   it('should call activeVaultAddFile and log', async () => {

@@ -35,7 +35,7 @@ import {
   vaultRemove,
   vaultsAdd,
   vaultsGet,
-  vaultsInit,
+  masterVaultInit,
   vaultsList,
   rateLimitRecordFailure,
   getRateLimitStatus,
@@ -46,6 +46,7 @@ import { encryptVaultKeyWithHashedPassword } from './encryptVaultKeyWithHashedPa
 import { encryptVaultWithKey } from './encryptVaultWithKey'
 import { getDecryptionKey } from './getDecryptionKey'
 import { hashPassword } from './hashPassword'
+import { masterPasswordManager } from './masterPasswordManager'
 import { withMirrorValidation } from '../middleware/validateMirrorKeyViaDHT'
 import { destroySharedDHT } from './utils/dht'
 import { receiveFileStream } from '../utils/recieveFileStream'
@@ -86,10 +87,11 @@ export const handleRpcCommand = async (req, isExtension = false) => {
           throw new Error('Password is required')
         }
 
-        const res = await vaultsInit(
-          requestData.encryptionKey,
-          isExtension ? { readOnly: true } : {}
-        )
+        const res = await masterVaultInit({
+          encryptionKey: requestData.encryptionKey,
+          hashedPassword: requestData.hashedPassword,
+          coreStoreOptions: isExtension ? { readOnly: true } : {}
+        })
 
         req.reply(JSON.stringify({ success: true, res }))
       } catch (error) {
@@ -230,11 +232,11 @@ export const handleRpcCommand = async (req, isExtension = false) => {
 
     case API.ACTIVE_VAULT_INIT:
       try {
-        await initActiveVaultInstance(
-          requestData?.id,
-          requestData?.encryptionKey,
-          isExtension ? { readOnly: true } : {}
-        )
+        await initActiveVaultInstance({
+          id: requestData?.id,
+          encryptionKey: requestData?.encryptionKey,
+          coreStoreOptions: isExtension ? { readOnly: true } : {}
+        })
 
         req.reply(JSON.stringify({ success: true }))
       } catch (error) {
@@ -444,6 +446,81 @@ export const handleRpcCommand = async (req, isExtension = false) => {
         req.reply(
           JSON.stringify({
             error: `Error resetting failed attempts: ${error}`
+          })
+        )
+      }
+
+      break
+
+    case API.MASTER_PASSWORD_CREATE:
+      try {
+        const data = await masterPasswordManager.createMasterPassword({
+          passwordBase64: requestData.password,
+          coreStoreOptions: isExtension ? { readOnly: true } : {}
+        })
+
+        req.reply(JSON.stringify({ data }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error creating master password: ${error}`
+          })
+        )
+      }
+
+      break
+
+    case API.MASTER_PASSWORD_INIT_WITH_PASSWORD:
+      try {
+        const data = await masterPasswordManager.initWithPassword({
+          passwordBase64: requestData.password,
+          coreStoreOptions: isExtension ? { readOnly: true } : {}
+        })
+
+        req.reply(JSON.stringify({ data }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error initializing with password: ${error}`
+          })
+        )
+      }
+
+      break
+
+    case API.MASTER_PASSWORD_UPDATE:
+      try {
+        const data = await masterPasswordManager.updateMasterPassword({
+          newPassword: requestData.newPassword,
+          currentPassword: requestData.currentPassword,
+          coreStoreOptions: isExtension ? { readOnly: true } : {}
+        })
+
+        req.reply(JSON.stringify({ data }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error updating master password: ${error}`
+          })
+        )
+      }
+
+      break
+
+    case API.MASTER_PASSWORD_INIT_WITH_CREDENTIALS:
+      try {
+        const data = await masterPasswordManager.initWithCredentials({
+          ciphertext: requestData.ciphertext,
+          nonce: requestData.nonce,
+          hashedPassword: requestData.hashedPassword,
+          coreStoreOptions: isExtension ? { readOnly: true } : {}
+        })
+
+        req.reply(JSON.stringify({ data }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error initializing with credentials: ${error}`
           })
         )
       }
