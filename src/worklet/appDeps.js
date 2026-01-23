@@ -13,6 +13,9 @@ import { validateAndSanitizePath } from './validateAndSanitizePath'
 import { defaultMirrorKeys } from '../constants/defaultBlindMirrors'
 
 let STORAGE_PATH = null
+let CORE_STORE_OPTIONS = {
+  readOnly: false
+}
 
 let encryptionInstance
 let isEncryptionInitialized = false
@@ -59,6 +62,13 @@ export const setStoragePath = async (path) => {
   }
 
   STORAGE_PATH = sanitizedPath
+}
+
+export const setCoreStoreOptions = (coreStoreOptions) => {
+  CORE_STORE_OPTIONS = {
+    readOnly: false,
+    ...coreStoreOptions
+  }
 }
 
 /**
@@ -218,19 +228,13 @@ export const buildPath = (path) => {
  * @param {string} params.path
  * @param {string | undefined} params.encryptionKey
  * @param {string | undefined} params.hashedPassword
- * @param {Object} params.coreStoreOptions
  * @returns {Promise<Autopass>}
  */
-export const initInstance = async ({
-  path,
-  hashedPassword,
-  encryptionKey,
-  coreStoreOptions = {}
-}) => {
+export const initInstance = async ({ path, hashedPassword, encryptionKey }) => {
   try {
     const fullPath = buildPath(path)
 
-    const store = new Corestore(fullPath, coreStoreOptions)
+    const store = new Corestore(fullPath, CORE_STORE_OPTIONS)
 
     if (!store) {
       throw new Error('Error creating store')
@@ -262,15 +266,13 @@ export const initInstance = async ({
  * @param {string | undefined} params.encryptionKey
  * @param {string} params.newHashedPassword
  * @param {string} params.currentHashedPassword
- * @param {Object} params.coreStoreOptions
  * @returns {Promise<Autopass>}
  */
 export const initInstanceWithNewBlindEncryption = async ({
   path,
   encryptionKey,
   newHashedPassword,
-  currentHashedPassword,
-  coreStoreOptions = {}
+  currentHashedPassword
 }) => {
   try {
     if (!currentHashedPassword || !newHashedPassword) {
@@ -279,7 +281,7 @@ export const initInstanceWithNewBlindEncryption = async ({
 
     const fullPath = buildPath(path)
 
-    const store = new Corestore(fullPath, coreStoreOptions)
+    const store = new Corestore(fullPath, CORE_STORE_OPTIONS)
 
     if (!store) {
       throw new Error('Error creating store')
@@ -312,14 +314,9 @@ export const initInstanceWithNewBlindEncryption = async ({
  * @param {Object} params
  * @param {string} params.id
  * @param {string | undefined} params.encryptionKey
- * @param {Object} params.coreStoreOptions
  * @returns {Promise<Autopass>}
  */
-export const initActiveVaultInstance = async ({
-  id,
-  encryptionKey,
-  coreStoreOptions = {}
-}) => {
+export const initActiveVaultInstance = async ({ id, encryptionKey }) => {
   isActiveVaultInitialized = false
 
   const hashedPassword = await getHashedPassword()
@@ -327,8 +324,7 @@ export const initActiveVaultInstance = async ({
   activeVaultInstance = await initInstance({
     path: `vault/${id}`,
     encryptionKey,
-    hashedPassword,
-    coreStoreOptions
+    hashedPassword
   })
 
   isActiveVaultInitialized = true
@@ -380,21 +376,15 @@ export const resetRateLimit = async () => {
  * @param {Object} params
  * @param {string | undefined} params.encryptionKey
  * @param {string | undefined} params.hashedPassword
- * @param {Object} params.coreStoreOptions
  * @returns {Promise<void>}
  */
-export const masterVaultInit = async ({
-  encryptionKey,
-  hashedPassword,
-  coreStoreOptions = {}
-}) => {
+export const masterVaultInit = async ({ encryptionKey, hashedPassword }) => {
   isVaultsInitialized = false
 
   vaultsInstance = await initInstance({
     path: 'vaults',
     encryptionKey,
-    hashedPassword,
-    coreStoreOptions
+    hashedPassword
   })
 
   isVaultsInitialized = true
@@ -405,14 +395,12 @@ export const masterVaultInit = async ({
  * @param {string | undefined} params.encryptionKey
  * @param {string} params.newHashedPassword
  * @param {string} params.currentHashedPassword
- * @param {Object} params.coreStoreOptions
  * @returns {Promise<void>}
  */
 export const masterVaultInitWithNewBlindEncryption = async ({
   encryptionKey,
   newHashedPassword,
-  currentHashedPassword,
-  coreStoreOptions = {}
+  currentHashedPassword
 }) => {
   isVaultsInitialized = false
 
@@ -420,23 +408,20 @@ export const masterVaultInitWithNewBlindEncryption = async ({
     path: 'vaults',
     encryptionKey,
     newHashedPassword,
-    currentHashedPassword,
-    coreStoreOptions
+    currentHashedPassword
   })
 
   isVaultsInitialized = true
 }
 
 /**
- * @param {Object} coreStoreOptions
  * @returns {Promise<void>}
  */
-export const encryptionInit = async (coreStoreOptions = {}) => {
+export const encryptionInit = async () => {
   isEncryptionInitialized = false
 
   encryptionInstance = await initInstance({
-    path: 'encryption',
-    coreStoreOptions
+    path: 'encryption'
   })
 
   isEncryptionInitialized = true

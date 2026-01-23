@@ -41,7 +41,8 @@ import {
   vaultsList,
   rateLimitRecordFailure,
   getRateLimitStatus,
-  resetRateLimit
+  resetRateLimit,
+  setCoreStoreOptions
 } from './appDeps'
 import { decryptVaultKey } from './decryptVaultKey'
 import { encryptVaultKeyWithHashedPassword } from './encryptVaultKeyWithHashedPassword'
@@ -60,7 +61,7 @@ import { validateInviteCode } from '../utils/validateInviteCode'
 
 let rpc = null
 
-export const handleRpcCommand = async (req, isExtension = false) => {
+export const handleRpcCommand = async (req) => {
   const commandName = API_BY_VALUE[req.command]
 
   const requestData = parseRequestData(req.data)
@@ -83,6 +84,21 @@ export const handleRpcCommand = async (req, isExtension = false) => {
 
       break
 
+    case API.SET_CORE_STORE_OPTIONS:
+      try {
+        workletLogger.log('Setting core store options:', requestData)
+        setCoreStoreOptions(requestData?.coreStoreOptions)
+
+        req.reply(JSON.stringify({ success: true }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error setting core store options: ${error}`
+          })
+        )
+      }
+      break
+
     case API.MASTER_VAULT_INIT:
       try {
         if (!requestData.encryptionKey) {
@@ -91,8 +107,7 @@ export const handleRpcCommand = async (req, isExtension = false) => {
 
         const res = await masterVaultInit({
           encryptionKey: requestData.encryptionKey,
-          hashedPassword: requestData.hashedPassword,
-          coreStoreOptions: isExtension ? { readOnly: true } : {}
+          hashedPassword: requestData.hashedPassword
         })
 
         req.reply(JSON.stringify({ success: true, res }))
@@ -236,8 +251,7 @@ export const handleRpcCommand = async (req, isExtension = false) => {
       try {
         await initActiveVaultInstance({
           id: requestData?.id,
-          encryptionKey: requestData?.encryptionKey,
-          coreStoreOptions: isExtension ? { readOnly: true } : {}
+          encryptionKey: requestData?.encryptionKey
         })
 
         req.reply(JSON.stringify({ success: true }))
@@ -457,8 +471,7 @@ export const handleRpcCommand = async (req, isExtension = false) => {
     case API.MASTER_PASSWORD_CREATE:
       try {
         const data = await masterPasswordManager.createMasterPassword({
-          passwordBase64: requestData.password,
-          coreStoreOptions: isExtension ? { readOnly: true } : {}
+          passwordBase64: requestData.password
         })
 
         req.reply(JSON.stringify({ data }))
@@ -475,8 +488,7 @@ export const handleRpcCommand = async (req, isExtension = false) => {
     case API.MASTER_PASSWORD_INIT_WITH_PASSWORD:
       try {
         const data = await masterPasswordManager.initWithPassword({
-          passwordBase64: requestData.password,
-          coreStoreOptions: isExtension ? { readOnly: true } : {}
+          passwordBase64: requestData.password
         })
 
         req.reply(JSON.stringify({ data }))
@@ -494,8 +506,7 @@ export const handleRpcCommand = async (req, isExtension = false) => {
       try {
         const data = await masterPasswordManager.updateMasterPassword({
           newPassword: requestData.newPassword,
-          currentPassword: requestData.currentPassword,
-          coreStoreOptions: isExtension ? { readOnly: true } : {}
+          currentPassword: requestData.currentPassword
         })
 
         req.reply(JSON.stringify({ data }))
@@ -514,8 +525,7 @@ export const handleRpcCommand = async (req, isExtension = false) => {
         const data = await masterPasswordManager.initWithCredentials({
           ciphertext: requestData.ciphertext,
           nonce: requestData.nonce,
-          hashedPassword: requestData.hashedPassword,
-          coreStoreOptions: isExtension ? { readOnly: true } : {}
+          hashedPassword: requestData.hashedPassword
         })
 
         req.reply(JSON.stringify({ data }))
@@ -559,7 +569,7 @@ export const handleRpcCommand = async (req, isExtension = false) => {
 
     case API.ENCRYPTION_INIT:
       try {
-        await encryptionInit(isExtension ? { readOnly: true } : {})
+        await encryptionInit()
 
         req.reply(JSON.stringify({ success: true }))
       } catch (error) {

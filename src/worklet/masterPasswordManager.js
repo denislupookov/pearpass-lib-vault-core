@@ -30,13 +30,9 @@ class MasterPasswordManager {
     }
   }
 
-  async ensureVaultsInitialized({
-    encryptionKey,
-    hashedPassword,
-    coreStoreOptions = {}
-  }) {
+  async ensureVaultsInitialized({ encryptionKey, hashedPassword }) {
     if (!getIsVaultsInitialized()) {
-      await masterVaultInit({ encryptionKey, hashedPassword, coreStoreOptions })
+      await masterVaultInit({ encryptionKey, hashedPassword })
     }
   }
 
@@ -53,7 +49,7 @@ class MasterPasswordManager {
     return enc
   }
 
-  async createMasterPassword({ passwordBase64, coreStoreOptions = {} }) {
+  async createMasterPassword({ passwordBase64 }) {
     if (!passwordBase64) {
       throw new Error('Password is required')
     }
@@ -81,8 +77,7 @@ class MasterPasswordManager {
 
     await this.ensureVaultsInitialized({
       encryptionKey: decryptedKey,
-      hashedPassword,
-      coreStoreOptions
+      hashedPassword
     })
 
     await vaultsAdd('masterEncryption', {
@@ -103,7 +98,7 @@ class MasterPasswordManager {
     return { hashedPassword, salt, ciphertext, nonce }
   }
 
-  async initWithPassword({ passwordBase64, coreStoreOptions = {} }) {
+  async initWithPassword({ passwordBase64 }) {
     if (!passwordBase64) {
       throw new Error('Password is required')
     }
@@ -156,18 +151,13 @@ class MasterPasswordManager {
 
     await masterVaultInit({
       encryptionKey: decryptVaultKeyRes,
-      hashedPassword,
-      coreStoreOptions
+      hashedPassword
     })
 
     return { success: true }
   }
 
-  async updateMasterPassword({
-    newPassword,
-    currentPassword,
-    coreStoreOptions = {}
-  }) {
+  async updateMasterPassword({ newPassword, currentPassword }) {
     if (!newPassword || !currentPassword) {
       throw new Error('New and current passwords are required')
     }
@@ -233,8 +223,7 @@ class MasterPasswordManager {
     await masterVaultInitWithNewBlindEncryption({
       encryptionKey: currentVaultKey,
       newHashedPassword,
-      currentHashedPassword,
-      coreStoreOptions
+      currentHashedPassword
     })
 
     await vaultsAdd('masterEncryption', {
@@ -267,12 +256,7 @@ class MasterPasswordManager {
     }
   }
 
-  async initWithCredentials({
-    ciphertext,
-    nonce,
-    hashedPassword,
-    coreStoreOptions = {}
-  }) {
+  async initWithCredentials({ ciphertext, nonce, hashedPassword }) {
     if (!ciphertext || !nonce || !hashedPassword) {
       throw new Error('Missing required parameters')
     }
@@ -291,8 +275,7 @@ class MasterPasswordManager {
 
     await masterVaultInit({
       encryptionKey: decryptVaultKeyRes,
-      hashedPassword,
-      coreStoreOptions
+      hashedPassword
     })
 
     return { success: true }

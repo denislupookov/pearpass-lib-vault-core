@@ -24,7 +24,7 @@ ipc.on('data', async (buffer) => {
       send: () => {}
     }
 
-    await handleRpcCommand(req, true)
+    await handleRpcCommand(req)
   } catch (error) {
     workletLogger.error('Error receiving message:', error)
   }
