@@ -677,9 +677,10 @@ export const deleteInvite = async () => {
  * @returns {Promise<{ vaultId: string, encryptionKey: string }>}
  */
 export const pairActiveVault = async (inviteCode) => {
+  const wasActive = isActiveVaultInitialized
+
   try {
     const [vaultId, inviteKey] = inviteCode.split('/')
-
     if (isActiveVaultInitialized) {
       await closeActiveVaultInstance()
     }
@@ -688,9 +689,15 @@ export const pairActiveVault = async (inviteCode) => {
       buildPath(`vault/${vaultId}`),
       inviteKey
     )
-
     return { vaultId, encryptionKey }
   } catch (error) {
+    if (wasActive) {
+      try {
+        await restartActiveVault()
+      } catch {
+        throw new Error(`Pairing failed: ${error.message}`)
+      }
+    }
     throw new Error(`Pairing failed: ${error.message}`)
   }
 }
