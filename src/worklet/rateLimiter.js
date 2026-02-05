@@ -1,10 +1,12 @@
 const MAX_ATTEMPTS = 5
-const LOCKOUT_DURATION_MS = 5 * 60 * 1000
+const MAX_BACKOFF_MINUTES = 24 * 60 // 24 hours
+const COOLDOWN_PERIOD_MS = MAX_BACKOFF_MINUTES * 60 * 1000
 const STORAGE_KEY = 'rateLimitData'
 
 const DEFAULT_DATA = {
-  failedAttempts: 0,
-  lockoutUntil: null
+  consecutiveFailures: 0,
+  lockoutUntil: null,
+  lastAttemptTime: null
 }
 
 export class RateLimiter {
@@ -22,6 +24,22 @@ export class RateLimiter {
     this.storage = storage
   }
 
+  /**
+   * @param {number} consecutiveFailures
+   * @returns {number}
+   */
+  calculateBackoffDuration(consecutiveFailures) {
+    if (consecutiveFailures < MAX_ATTEMPTS) {
+      return 0
+    }
+
+    const exponent = consecutiveFailures - MAX_ATTEMPTS + 1
+    const backoffMinutes = Math.pow(2, exponent)
+    const cappedMinutes = Math.min(backoffMinutes, MAX_BACKOFF_MINUTES)
+
+    return cappedMinutes * 60 * 1000
+  }
+
   async getData() {
     if (!this.storage) {
       throw new Error('Storage not initialized.')
@@ -31,9 +49,11 @@ export class RateLimiter {
       const data = await this.storage.get(STORAGE_KEY)
       return data || { ...DEFAULT_DATA }
     } catch {
+      const backoffMs = this.calculateBackoffDuration(1)
       return {
-        failedAttempts: MAX_ATTEMPTS,
-        lockoutUntil: Date.now() + LOCKOUT_DURATION_MS
+        consecutiveFailures: 1,
+        lockoutUntil: Date.now() + backoffMs,
+        lastAttemptTime: Date.now()
       }
     }
   }
@@ -45,13 +65,21 @@ export class RateLimiter {
     return Date.now() >= lockoutUntil
   }
 
+  /**
+   * @param {number|null} lastAttemptTime
+   * @returns {boolean}
+   */
+  shouldGrantFreshStart(lastAttemptTime) {
+    if (lastAttemptTime === null) {
+      return false
+    }
+    return Date.now() - lastAttemptTime >= COOLDOWN_PERIOD_MS
+  }
+
   async getStatus() {
     const data = await this.getData()
 
-    if (
-      data.lockoutUntil !== null &&
-      this.isLockoutExpired(data.lockoutUntil)
-    ) {
+    if (this.shouldGrantFreshStart(data.lastAttemptTime)) {
       await this.reset()
       return {
         isLocked: false,
@@ -60,18 +88,44 @@ export class RateLimiter {
       }
     }
 
-    const remainingAttempts = Math.max(0, MAX_ATTEMPTS - data.failedAttempts)
-    const isLocked = remainingAttempts <= 0 && data.lockoutUntil !== null
+    if (
+      data.lockoutUntil !== null &&
+      this.isLockoutExpired(data.lockoutUntil)
+    ) {
+      return {
+        isLocked: false,
+        lockoutRemainingMs: 0,
+        remainingAttempts: 0
+      }
+    }
+
+    const isLocked = data.lockoutUntil !== null
     const lockoutRemainingMs = data.lockoutUntil
       ? Math.max(0, data.lockoutUntil - Date.now())
       : 0
+
+    const remainingAttempts = isLocked
+      ? 0
+      : Math.max(0, MAX_ATTEMPTS - data.consecutiveFailures)
 
     return { isLocked, lockoutRemainingMs, remainingAttempts }
   }
 
   async getRemainingAttempts() {
     const data = await this.getData()
-    return Math.max(0, MAX_ATTEMPTS - data.failedAttempts)
+
+    if (this.shouldGrantFreshStart(data.lastAttemptTime)) {
+      return MAX_ATTEMPTS
+    }
+
+    if (
+      data.lockoutUntil !== null &&
+      !this.isLockoutExpired(data.lockoutUntil)
+    ) {
+      return 0
+    }
+
+    return Math.max(0, MAX_ATTEMPTS - data.consecutiveFailures)
   }
 
   async recordFailure() {
@@ -82,18 +136,26 @@ export class RateLimiter {
       throw new Error('Rate limiter unavailable - denying attempt')
     }
 
+    if (this.shouldGrantFreshStart(data.lastAttemptTime)) {
+      data.consecutiveFailures = 0
+      data.lockoutUntil = null
+    }
+
     if (
       data.lockoutUntil !== null &&
       this.isLockoutExpired(data.lockoutUntil)
     ) {
-      data.failedAttempts = 0
       data.lockoutUntil = null
     }
 
-    data.failedAttempts++
+    data.consecutiveFailures++
+    data.lastAttemptTime = Date.now()
 
-    if (data.failedAttempts >= MAX_ATTEMPTS) {
-      data.lockoutUntil = Date.now() + LOCKOUT_DURATION_MS
+    const backoffMs = this.calculateBackoffDuration(data.consecutiveFailures)
+    if (backoffMs > 0) {
+      data.lockoutUntil = Date.now() + backoffMs
+    } else {
+      data.lockoutUntil = null
     }
 
     try {

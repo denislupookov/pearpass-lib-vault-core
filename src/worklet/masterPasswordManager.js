@@ -244,7 +244,7 @@ class MasterPasswordManager {
       currentHashedPassword,
       newHashedPassword,
       activeVaultId,
-      masterEncryptionKey: currentVaultKey,
+      masterEncryptionKey: currentVaultKey
     })
 
     return {
@@ -284,7 +284,7 @@ class MasterPasswordManager {
     currentHashedPassword,
     newHashedPassword,
     activeVaultId,
-    masterEncryptionKey,
+    masterEncryptionKey
   }) {
     if (getIsActiveVaultInitialized()) {
       await closeActiveVaultInstance()
