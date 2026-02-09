@@ -14,7 +14,8 @@ import { defaultMirrorKeys } from '../constants/defaultBlindMirrors'
 
 let STORAGE_PATH = null
 let CORE_STORE_OPTIONS = {
-  readOnly: false
+  readOnly: false,
+  suspend: true
 }
 
 let encryptionInstance
