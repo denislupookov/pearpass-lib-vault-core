@@ -334,6 +334,10 @@ export const initActiveVaultInstance = async ({ id, encryptionKey }) => {
   lastActiveVaultId = id
   lastActiveVaultEncryptionKey = encryptionKey
 
+  if (lastOnUpdateCallback) {
+    lastOnUpdateCallback()
+  }
+
   return activeVaultInstance
 }
 
