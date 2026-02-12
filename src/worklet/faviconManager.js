@@ -5,19 +5,8 @@ import {
   activeVaultGetFile,
   getIsActiveVaultInitialized
 } from './appDeps'
+import { addHttps } from '../utils/urlUtils'
 import { workletLogger } from './utils/workletLogger'
-
-/**
- * Adds https protocol to URL if not present
- * @param {string} url
- * @returns {string}
- */
-const addHttps = (url) => {
-  const lowerUrl = url.toLowerCase()
-  return lowerUrl.startsWith('http://') || lowerUrl.startsWith('https://')
-    ? lowerUrl
-    : `https://${lowerUrl}`
-}
 
 /**
  * Retrieves a favicon from cache
