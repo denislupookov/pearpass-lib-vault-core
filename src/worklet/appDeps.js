@@ -17,6 +17,7 @@ import { defaultMirrorKeys } from '../constants/defaultBlindMirrors'
 let STORAGE_PATH = null
 let JOB_STORAGE_PATH = null
 
+const JOB_FILE_NAME = 'jobs.enc'
 const JOB_FILE_MAGIC = 'PPJQ'
 const JOB_FILE_HEADER_SIZE = 16
 const JOB_FILE_NONCE_SIZE = sodium.crypto_secretbox_NONCEBYTES
@@ -935,7 +936,7 @@ export const readAndDecryptJobFile = async () => {
     return []
   }
 
-  const filePath = buildJobPath('jobs.enc')
+  const filePath = buildJobPath(JOB_FILE_NAME)
 
   let fileData
   try {
@@ -1010,7 +1011,7 @@ export const writeAndEncryptJobFile = async (jobs) => {
     throw new Error('Not authenticated')
   }
 
-  const filePath = buildJobPath('jobs.enc')
+  const filePath = buildJobPath(JOB_FILE_NAME)
   const tempPath = filePath + '.tmp'
 
   const dirPath = barePath.dirname(filePath)
