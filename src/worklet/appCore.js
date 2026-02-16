@@ -42,7 +42,10 @@ import {
   rateLimitRecordFailure,
   getRateLimitStatus,
   resetRateLimit,
-  setCoreStoreOptions
+  setCoreStoreOptions,
+  setJobStoragePath,
+  readAndDecryptJobFile,
+  writeAndEncryptJobFile
 } from './appDeps'
 import { decryptVaultKey } from './decryptVaultKey'
 import { encryptVaultKeyWithHashedPassword } from './encryptVaultKeyWithHashedPassword'
@@ -843,6 +846,51 @@ export const handleRpcCommand = async (req) => {
         req.reply(
           JSON.stringify({
             error: `Error resuming instances: ${error}`
+          })
+        )
+      }
+
+      break
+
+    case API.SET_JOB_STORAGE_PATH:
+      try {
+        setJobStoragePath(requestData?.path)
+
+        req.reply(JSON.stringify({ success: true }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error setting job storage path: ${error}`
+          })
+        )
+      }
+
+      break
+
+    case API.READ_JOB_QUEUE:
+      try {
+        const jobs = await readAndDecryptJobFile()
+
+        req.reply(JSON.stringify({ data: jobs }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error reading job queue: ${error}`
+          })
+        )
+      }
+
+      break
+
+    case API.WRITE_JOB_QUEUE:
+      try {
+        await writeAndEncryptJobFile(requestData?.jobs)
+
+        req.reply(JSON.stringify({ success: true }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error writing job queue: ${error}`
           })
         )
       }
