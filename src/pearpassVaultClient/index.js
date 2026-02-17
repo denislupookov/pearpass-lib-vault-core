@@ -695,6 +695,18 @@ export class PearpassVaultClient extends EventEmitter {
   }
 
   /**
+   * Tests IPC by sending a URL to be logged by the backend.
+   * @param {string} url - The URL to log.
+   * @returns {Promise<void>}
+   */
+  async fetchFavicon(url) {
+    return this._handleRequest({
+      command: API.FETCH_FAVICON,
+      data: { url }
+    })
+  }
+
+  /**
    * Sets the job storage path for the worklet.
    * @param {string} path - The job storage path to set.
    * @returns {Promise<void>}

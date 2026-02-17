@@ -50,6 +50,7 @@ import {
 import { decryptVaultKey } from './decryptVaultKey'
 import { encryptVaultKeyWithHashedPassword } from './encryptVaultKeyWithHashedPassword'
 import { encryptVaultWithKey } from './encryptVaultWithKey'
+import { faviconManager } from './faviconManager'
 import { getDecryptionKey } from './getDecryptionKey'
 import { hashPassword } from './hashPassword'
 import { masterPasswordManager } from './masterPasswordManager'
@@ -100,6 +101,37 @@ export const handleRpcCommand = async (req) => {
           })
         )
       }
+      break
+
+    case API.FETCH_FAVICON:
+      try {
+        const faviconBase64 = await faviconManager.fetchFavicon(
+          requestData?.url
+        )
+
+        if (!faviconBase64) {
+          throw new Error('Favicon not found')
+        }
+
+        req.reply(
+          JSON.stringify({
+            success: true,
+            data: {
+              url: requestData?.url,
+              favicon: faviconBase64
+            }
+          })
+        )
+      } catch (err) {
+        workletLogger.error('Error fetching favicon:', err)
+        req.reply(
+          JSON.stringify({
+            success: false,
+            error: err.toString()
+          })
+        )
+      }
+
       break
 
     case API.MASTER_VAULT_INIT:

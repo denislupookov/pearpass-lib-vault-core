@@ -20,6 +20,7 @@
     "bare-os": "^3.6.2",
     "bare-path": "^3.0.0",
     "bare-rpc": "^1.1.0",
+    "bare-fetch": "^2.5.1",
     "blind-encryption-sodium": "^3.0.0",
     "compact-encoding": "^2.18.0",
     "corestore": "^7.7.0",
