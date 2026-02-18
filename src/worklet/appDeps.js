@@ -1,9 +1,11 @@
 /** @typedef {import('bare')} */ /* global Bare */
 import Autopass from 'autopass'
 import b4a from 'b4a'
+import fs from 'bare-fs'
 import barePath from 'bare-path'
 import BlindEncryptionSodium from 'blind-encryption-sodium'
 import Corestore from 'corestore'
+import sodium from 'sodium-native'
 
 import { getForbiddenRoots } from './getForbiddenRoots'
 import { PearPassPairer } from './pearpassPairer'
@@ -13,6 +15,13 @@ import { validateAndSanitizePath } from './validateAndSanitizePath'
 import { defaultMirrorKeys } from '../constants/defaultBlindMirrors'
 
 let STORAGE_PATH = null
+let JOB_STORAGE_PATH = null
+
+const JOB_FILE_NAME = 'jobs.enc'
+const JOB_FILE_MAGIC = 'PPJQ'
+const JOB_FILE_HEADER_SIZE = 16
+const JOB_FILE_NONCE_SIZE = sodium.crypto_secretbox_NONCEBYTES
+
 let CORE_STORE_OPTIONS = {
   readOnly: false,
   suspend: true
@@ -881,4 +890,169 @@ export const removeAllBlindMirrors = async () => {
 export const getHashedPassword = async () => {
   const masterEncryption = await vaultsGet('masterEncryption')
   return masterEncryption?.hashedPassword
+}
+
+/**
+ * Job queue storage path management
+ * @param {string} path
+ * @returns {void}
+ */
+export const setJobStoragePath = (path) => {
+  const sanitizedPath = validateAndSanitizePath(path)
+  JOB_STORAGE_PATH = sanitizedPath
+}
+
+/**
+ * @param {string} relativePath
+ * @returns {string}
+ */
+export const buildJobPath = (relativePath) => {
+  if (!JOB_STORAGE_PATH) {
+    throw new Error('JOB_STORAGE_PATH not set')
+  }
+
+  const resolved = barePath.join(JOB_STORAGE_PATH, relativePath)
+
+  const normalizedRoot = barePath.normalize(JOB_STORAGE_PATH)
+  const normalizedResolved = barePath.normalize(resolved)
+
+  if (
+    normalizedResolved !== normalizedRoot &&
+    !normalizedResolved.startsWith(normalizedRoot + barePath.sep)
+  ) {
+    throw new Error('Path traversal detected')
+  }
+
+  return normalizedResolved
+}
+
+/**
+ * Reads and decrypts the job queue file.
+ * @returns {Promise<Array>}
+ */
+export const readAndDecryptJobFile = async () => {
+  const hashedPasswordHex = await getHashedPassword()
+  if (!hashedPasswordHex) {
+    return []
+  }
+
+  const filePath = buildJobPath(JOB_FILE_NAME)
+
+  let fileData
+  try {
+    fileData = fs.readFileSync(filePath)
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return []
+    }
+    throw err
+  }
+
+  if (fileData.length < JOB_FILE_HEADER_SIZE + JOB_FILE_NONCE_SIZE) {
+    throw new Error('Job file too small')
+  }
+
+  const magic = fileData.slice(0, 4).toString('utf-8')
+  if (magic !== JOB_FILE_MAGIC) {
+    throw new Error('Invalid job file magic bytes')
+  }
+
+  const version = fileData.readUInt16LE(4)
+  if (version !== 1) {
+    throw new Error(`Unsupported job file version: ${version}`)
+  }
+
+  const nonce = fileData.slice(
+    JOB_FILE_HEADER_SIZE,
+    JOB_FILE_HEADER_SIZE + JOB_FILE_NONCE_SIZE
+  )
+  const ciphertext = fileData.slice(JOB_FILE_HEADER_SIZE + JOB_FILE_NONCE_SIZE)
+
+  if (ciphertext.length < sodium.crypto_secretbox_MACBYTES) {
+    throw new Error('Job file ciphertext too small')
+  }
+
+  const key = sodium.sodium_malloc(sodium.crypto_secretbox_KEYBYTES)
+  const plaintext = sodium.sodium_malloc(
+    ciphertext.length - sodium.crypto_secretbox_MACBYTES
+  )
+
+  try {
+    key.write(hashedPasswordHex, 'hex')
+
+    const opened = sodium.crypto_secretbox_open_easy(
+      plaintext,
+      ciphertext,
+      nonce,
+      key
+    )
+
+    if (!opened) {
+      throw new Error('Failed to decrypt job file: authentication failed')
+    }
+
+    const json = plaintext.toString('utf-8')
+    const parsed = JSON.parse(json)
+    return parsed
+  } finally {
+    sodium.sodium_memzero(key)
+    sodium.sodium_memzero(plaintext)
+  }
+}
+
+/**
+ * Encrypts and writes the job queue file atomically.
+ * @param {Array} jobs
+ * @returns {Promise<void>}
+ */
+export const writeAndEncryptJobFile = async (jobs) => {
+  const hashedPasswordHex = await getHashedPassword()
+  if (!hashedPasswordHex) {
+    throw new Error('Not authenticated')
+  }
+
+  const filePath = buildJobPath(JOB_FILE_NAME)
+  const tempPath = filePath + '.tmp'
+
+  const dirPath = barePath.dirname(filePath)
+  try {
+    fs.mkdirSync(dirPath, { recursive: true })
+  } catch (err) {
+    if (err.code !== 'EEXIST') {
+      throw err
+    }
+  }
+
+  const jsonBuffer = Buffer.from(JSON.stringify(jobs), 'utf-8')
+
+  const nonce = sodium.sodium_malloc(JOB_FILE_NONCE_SIZE)
+  const key = sodium.sodium_malloc(sodium.crypto_secretbox_KEYBYTES)
+  const ciphertext = sodium.sodium_malloc(
+    jsonBuffer.length + sodium.crypto_secretbox_MACBYTES
+  )
+
+  try {
+    sodium.randombytes_buf(nonce)
+    key.write(hashedPasswordHex, 'hex')
+
+    sodium.crypto_secretbox_easy(ciphertext, jsonBuffer, nonce, key)
+
+    const header = Buffer.alloc(JOB_FILE_HEADER_SIZE)
+    header.write(JOB_FILE_MAGIC, 0, 4, 'utf-8')
+    header.writeUInt16LE(1, 4)
+    header.writeUInt16LE(jobs.length, 6)
+
+    const output = Buffer.concat([
+      header,
+      Buffer.from(nonce),
+      Buffer.from(ciphertext)
+    ])
+
+    fs.writeFileSync(tempPath, output)
+    fs.renameSync(tempPath, filePath)
+  } finally {
+    sodium.sodium_memzero(nonce)
+    sodium.sodium_memzero(key)
+    sodium.sodium_memzero(ciphertext)
+  }
 }

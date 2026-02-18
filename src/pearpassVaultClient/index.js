@@ -695,6 +695,52 @@ export class PearpassVaultClient extends EventEmitter {
   }
 
   /**
+   * Tests IPC by sending a URL to be logged by the backend.
+   * @param {string} url - The URL to log.
+   * @returns {Promise<void>}
+   */
+  async fetchFavicon(url) {
+    return this._handleRequest({
+      command: API.FETCH_FAVICON,
+      data: { url }
+    })
+  }
+
+  /**
+   * Sets the job storage path for the worklet.
+   * @param {string} path - The job storage path to set.
+   * @returns {Promise<void>}
+   */
+  async setJobStoragePath(path) {
+    return this._handleRequest({
+      command: API.SET_JOB_STORAGE_PATH,
+      data: { path }
+    })
+  }
+
+  /**
+   * Reads and decrypts the job queue file.
+   * @returns {Promise<Array>}
+   */
+  async readJobQueue() {
+    return this._handleRequest({
+      command: API.READ_JOB_QUEUE
+    })
+  }
+
+  /**
+   * Encrypts and writes the job queue file.
+   * @param {Array} jobs - The jobs to write.
+   * @returns {Promise<void>}
+   */
+  async writeJobQueue(jobs) {
+    return this._handleRequest({
+      command: API.WRITE_JOB_QUEUE,
+      data: { jobs }
+    })
+  }
+
+  /**
    * @param {string} data
    * @param {string} password
    * @returns {Promise<{
