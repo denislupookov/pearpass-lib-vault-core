@@ -50,6 +50,7 @@ import {
 import { decryptVaultKey } from './decryptVaultKey'
 import { encryptVaultKeyWithHashedPassword } from './encryptVaultKeyWithHashedPassword'
 import { encryptVaultWithKey } from './encryptVaultWithKey'
+import { encryptExportData, decryptExportData } from './exportDataEncryption'
 import { faviconManager } from './faviconManager'
 import { getDecryptionKey } from './getDecryptionKey'
 import { hashPassword } from './hashPassword'
@@ -749,29 +750,9 @@ export const handleRpcCommand = async (req) => {
       try {
         const { data, password } = requestData
 
-        const { hashedPassword, salt } = hashPassword(
-          Buffer.from(password, 'utf8').toString('base64')
-        )
+        const encryptedData = encryptExportData(data, password)
 
-        const dataBuffer = Buffer.from(data, 'utf8')
-        const { ciphertext, nonce } = encryptVaultWithKey(
-          hashedPassword,
-          dataBuffer.toString('base64')
-        )
-
-        req.reply(
-          JSON.stringify({
-            data: {
-              version: '1.0',
-              encrypted: true,
-              algorithm: 'XSalsa20-Poly1305',
-              kdf: 'Argon2id',
-              salt,
-              nonce,
-              ciphertext
-            }
-          })
-        )
+        req.reply(JSON.stringify({ data: encryptedData }))
       } catch (error) {
         req.reply(
           JSON.stringify({
@@ -786,30 +767,7 @@ export const handleRpcCommand = async (req) => {
       try {
         const { encryptedData, password } = requestData
 
-        if (!encryptedData.encrypted) {
-          throw new Error('Data is not encrypted')
-        }
-
-        const hashedPassword = getDecryptionKey({
-          password: Buffer.from(password, 'utf8').toString('base64'),
-          salt: encryptedData.salt
-        })
-
-        const decryptedBase64 = decryptVaultKey({
-          ciphertext: encryptedData.ciphertext,
-          nonce: encryptedData.nonce,
-          hashedPassword
-        })
-
-        if (!decryptedBase64) {
-          throw new Error(
-            'Decryption failed - invalid password or corrupted data'
-          )
-        }
-
-        const decryptedData = Buffer.from(decryptedBase64, 'base64').toString(
-          'utf8'
-        )
+        const decryptedData = decryptExportData(encryptedData, password)
 
         req.reply(JSON.stringify({ data: decryptedData }))
       } catch (error) {
