@@ -693,4 +693,43 @@ export class PearpassVaultClient extends EventEmitter {
       command: API.BACKGROUND_END
     })
   }
+
+  /**
+   * @param {string} data
+   * @param {string} password
+   * @returns {Promise<{
+   *   version: string,
+   *   encrypted: boolean,
+   *   algorithm: string,
+   *   kdf: string,
+   *   salt: string,
+   *   nonce: string,
+   *   ciphertext: string
+   * }>}
+   */
+  async encryptExportData(data, password) {
+    return this._handleRequest({
+      command: API.ENCRYPTION_ENCRYPT_EXPORT_DATA,
+      data: { data, password }
+    })
+  }
+
+  /**
+   * @param {Object} encryptedData
+   * @param {string} encryptedData.version
+   * @param {boolean} encryptedData.encrypted
+   * @param {string} encryptedData.algorithm
+   * @param {string} encryptedData.kdf
+   * @param {string} encryptedData.salt
+   * @param {string} encryptedData.nonce
+   * @param {string} encryptedData.ciphertext
+   * @param {string} password
+   * @returns {Promise<string>}
+   */
+  async decryptExportData(encryptedData, password) {
+    return this._handleRequest({
+      command: API.ENCRYPTION_DECRYPT_EXPORT_DATA,
+      data: { encryptedData, password }
+    })
+  }
 }

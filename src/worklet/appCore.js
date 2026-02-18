@@ -710,6 +710,83 @@ export const handleRpcCommand = async (req) => {
 
       break
 
+    case API.ENCRYPTION_ENCRYPT_EXPORT_DATA:
+      try {
+        const { data, password } = requestData
+
+        const { hashedPassword, salt } = hashPassword(
+          Buffer.from(password, 'utf8').toString('base64')
+        )
+
+        const dataBuffer = Buffer.from(data, 'utf8')
+        const { ciphertext, nonce } = encryptVaultWithKey(
+          hashedPassword,
+          dataBuffer.toString('base64')
+        )
+
+        req.reply(
+          JSON.stringify({
+            data: {
+              version: '1.0',
+              encrypted: true,
+              algorithm: 'XSalsa20-Poly1305',
+              kdf: 'Argon2id',
+              salt,
+              nonce,
+              ciphertext
+            }
+          })
+        )
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error encrypting export data: ${error}`
+          })
+        )
+      }
+
+      break
+
+    case API.ENCRYPTION_DECRYPT_EXPORT_DATA:
+      try {
+        const { encryptedData, password } = requestData
+
+        if (!encryptedData.encrypted) {
+          throw new Error('Data is not encrypted')
+        }
+
+        const hashedPassword = getDecryptionKey({
+          password: Buffer.from(password, 'utf8').toString('base64'),
+          salt: encryptedData.salt
+        })
+
+        const decryptedBase64 = decryptVaultKey({
+          ciphertext: encryptedData.ciphertext,
+          nonce: encryptedData.nonce,
+          hashedPassword
+        })
+
+        if (!decryptedBase64) {
+          throw new Error(
+            'Decryption failed - invalid password or corrupted data'
+          )
+        }
+
+        const decryptedData = Buffer.from(decryptedBase64, 'base64').toString(
+          'utf8'
+        )
+
+        req.reply(JSON.stringify({ data: decryptedData }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error decrypting export data: ${error.message || error}`
+          })
+        )
+      }
+
+      break
+
     case API.ENCRYPTION_CLOSE:
       try {
         await encryptionClose()
