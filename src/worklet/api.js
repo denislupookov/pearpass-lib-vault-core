@@ -54,7 +54,9 @@ export const API = {
   SET_JOB_STORAGE_PATH: 50,
   READ_JOB_QUEUE: 51,
   WRITE_JOB_QUEUE: 52,
-  FETCH_FAVICON: 53
+  FETCH_FAVICON: 53,
+  ENCRYPTION_ENCRYPT_EXPORT_DATA: 54,
+  ENCRYPTION_DECRYPT_EXPORT_DATA: 55
 }
 
 export const API_BY_VALUE = Object.entries(API).reduce((acc, [key, value]) => {

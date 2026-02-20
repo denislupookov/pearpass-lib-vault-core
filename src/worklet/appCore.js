@@ -50,6 +50,7 @@ import {
 import { decryptVaultKey } from './decryptVaultKey'
 import { encryptVaultKeyWithHashedPassword } from './encryptVaultKeyWithHashedPassword'
 import { encryptVaultWithKey } from './encryptVaultWithKey'
+import { encryptExportData, decryptExportData } from './exportDataEncryption'
 import { faviconManager } from './faviconManager'
 import { getDecryptionKey } from './getDecryptionKey'
 import { hashPassword } from './hashPassword'
@@ -739,6 +740,40 @@ export const handleRpcCommand = async (req) => {
         req.reply(
           JSON.stringify({
             error: `Error decrypting vault key: ${error}`
+          })
+        )
+      }
+
+      break
+
+    case API.ENCRYPTION_ENCRYPT_EXPORT_DATA:
+      try {
+        const { data, password } = requestData
+
+        const encryptedData = encryptExportData(data, password)
+
+        req.reply(JSON.stringify({ data: encryptedData }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error encrypting export data: ${error}`
+          })
+        )
+      }
+
+      break
+
+    case API.ENCRYPTION_DECRYPT_EXPORT_DATA:
+      try {
+        const { encryptedData, password } = requestData
+
+        const decryptedData = decryptExportData(encryptedData, password)
+
+        req.reply(JSON.stringify({ data: decryptedData }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error decrypting export data: ${error.message || error}`
           })
         )
       }
