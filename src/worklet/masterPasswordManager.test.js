@@ -1,4 +1,4 @@
-import * as constantTimeHashCompareModule from 'pearpass-utils-password-check'
+import * as constantTimeHashCompareModule from '@tetherto/pearpass-utils-password-check'
 
 import * as appDeps from './appDeps'
 import * as decryptVaultKeyModule from './decryptVaultKey'
@@ -48,7 +48,7 @@ jest.mock('./hashPassword', () => ({
   hashPassword: jest.fn()
 }))
 
-jest.mock('pearpass-utils-password-check', () => ({
+jest.mock('@tetherto/pearpass-utils-password-check', () => ({
   constantTimeHashCompare: jest.fn()
 }))
 
