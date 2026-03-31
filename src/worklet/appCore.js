@@ -895,34 +895,6 @@ export const handleRpcCommand = async (req) => {
 
       break
 
-    case API.BACKGROUND_BEGIN:
-      try {
-        await suspendAllInstances()
-        req.reply(JSON.stringify({ success: true }))
-      } catch (error) {
-        req.reply(
-          JSON.stringify({
-            error: `Error suspending instances: ${error}`
-          })
-        )
-      }
-
-      break
-
-    case API.BACKGROUND_END:
-      try {
-        await resumeAllInstances()
-        req.reply(JSON.stringify({ success: true }))
-      } catch (error) {
-        req.reply(
-          JSON.stringify({
-            error: `Error resuming instances: ${error}`
-          })
-        )
-      }
-
-      break
-
     case API.SET_JOB_STORAGE_PATH:
       try {
         setJobStoragePath(requestData?.path)
@@ -1071,6 +1043,29 @@ export const setupIPC = () => {
     // eslint-disable-next-line no-undef
     Bare.exit(0)
   })
+
+  // Suspend/resume Autopass instances via Bare lifecycle events.
+  // bare-kit calls NativeBareKit.suspend() on AppState 'background',
+  // which fires Bare 'suspend' inside the worklet before pausing the
+  // event loop.
+  // eslint-disable-next-line no-undef
+  if (typeof Bare !== 'undefined') {
+    workletLogger.log('Bare lifecycle events detected')
+    // eslint-disable-next-line no-undef
+    Bare.on('suspend', () => {
+      workletLogger.log('Bare suspend event detected')
+      suspendAllInstances()
+        .catch(() => workletLogger.error('Error suspending instances'))
+        .then(() => workletLogger.log('Instances suspended successfully'))
+    })
+    // eslint-disable-next-line no-undef
+    Bare.on('resume', () => {
+      workletLogger.log('Bare resume event detected')
+      resumeAllInstances()
+        .catch(() => workletLogger.error('Error resuming instances'))
+        .then(() => workletLogger.log('Instances resumed successfully'))
+    })
+  }
 
   return ipc
 }

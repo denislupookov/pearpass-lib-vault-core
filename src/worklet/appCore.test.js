@@ -221,8 +221,6 @@ jest.mock('./api', () => {
     BLIND_MIRROR_REMOVE: 37,
     BLIND_MIRRORS_ADD_DEFAULTS: 38,
     BLIND_MIRRORS_REMOVE_ALL: 39,
-    BACKGROUND_BEGIN: 42,
-    BACKGROUND_END: 43,
     FETCH_FAVICON: 44
   }
 
@@ -1179,44 +1177,6 @@ describe('handleRpcCommand', () => {
 
     expect(mockRemoveAllBlindMirrors).toHaveBeenCalled()
     expect(mockRestartActiveVault).toHaveBeenCalled()
-    expect(reply).toHaveBeenCalledTimes(1)
-
-    const payload = JSON.parse(reply.mock.calls[0][0])
-    expect(payload).toEqual({ success: true })
-  })
-
-  test('BACKGROUND_BEGIN: calls suspendAllInstances and replies', async () => {
-    mockSuspendAllInstances.mockResolvedValue()
-
-    const reply = jest.fn()
-    const req = {
-      command: API.BACKGROUND_BEGIN,
-      data: null,
-      reply
-    }
-
-    await handleRpcCommand(req)
-
-    expect(mockSuspendAllInstances).toHaveBeenCalled()
-    expect(reply).toHaveBeenCalledTimes(1)
-
-    const payload = JSON.parse(reply.mock.calls[0][0])
-    expect(payload).toEqual({ success: true })
-  })
-
-  test('BACKGROUND_END: calls resumeAllInstances and replies', async () => {
-    mockResumeAllInstances.mockResolvedValue()
-
-    const reply = jest.fn()
-    const req = {
-      command: API.BACKGROUND_END,
-      data: null,
-      reply
-    }
-
-    await handleRpcCommand(req)
-
-    expect(mockResumeAllInstances).toHaveBeenCalled()
     expect(reply).toHaveBeenCalledTimes(1)
 
     const payload = JSON.parse(reply.mock.calls[0][0])
