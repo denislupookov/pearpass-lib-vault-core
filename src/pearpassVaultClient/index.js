@@ -675,26 +675,6 @@ export class PearpassVaultClient extends EventEmitter {
   }
 
   /**
-   * Signals the worklet to suspend background I/O.
-   * @returns {Promise<void>}
-   */
-  async beginBackground() {
-    return this._handleRequest({
-      command: API.BACKGROUND_BEGIN
-    })
-  }
-
-  /**
-   * Signals the worklet to resume foreground I/O.
-   * @returns {Promise<void>}
-   */
-  async endBackground() {
-    return this._handleRequest({
-      command: API.BACKGROUND_END
-    })
-  }
-
-  /**
    * Tests IPC by sending a URL to be logged by the backend.
    * @param {string} url - The URL to log.
    * @returns {Promise<void>}

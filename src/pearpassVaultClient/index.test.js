@@ -68,9 +68,7 @@ jest.mock('../worklet/api', () => ({
     CLOSE_ALL_INSTANCES: 'CLOSE_ALL_INSTANCES',
     ACTIVE_VAULT_FILE_ADD: 'ACTIVE_VAULT_FILE_ADD',
     ACTIVE_VAULT_FILE_GET: 'ACTIVE_VAULT_FILE_GET',
-    ACTIVE_VAULT_FILE_REMOVE: 'ACTIVE_VAULT_FILE_REMOVE',
-    BACKGROUND_BEGIN: 'BACKGROUND_BEGIN',
-    BACKGROUND_END: 'BACKGROUND_END'
+    ACTIVE_VAULT_FILE_REMOVE: 'ACTIVE_VAULT_FILE_REMOVE'
   },
   API_BY_VALUE: {
     ON_UPDATE: 'ON_UPDATE',
@@ -114,9 +112,7 @@ jest.mock('../worklet/api', () => ({
     CLOSE_ALL_INSTANCES: 'CLOSE_ALL_INSTANCES',
     ACTIVE_VAULT_FILE_ADD: 'ACTIVE_VAULT_FILE_ADD',
     ACTIVE_VAULT_FILE_GET: 'ACTIVE_VAULT_FILE_GET',
-    ACTIVE_VAULT_FILE_REMOVE: 'ACTIVE_VAULT_FILE_REMOVE',
-    BACKGROUND_BEGIN: 'BACKGROUND_BEGIN',
-    BACKGROUND_END: 'BACKGROUND_END'
+    ACTIVE_VAULT_FILE_REMOVE: 'ACTIVE_VAULT_FILE_REMOVE'
   }
 }))
 
@@ -219,8 +215,6 @@ describe('PearpassVaultClient', () => {
     await expect(client.encryptionClose()).resolves.toBe('mockData')
     await expect(client.closeAllInstances()).resolves.toBe('mockData')
     await expect(client.activeVaultRemoveFile('key')).resolves.toBe('mockData')
-    await expect(client.beginBackground()).resolves.toBe('mockData')
-    await expect(client.endBackground()).resolves.toBe('mockData')
   })
 
   it('base64-encodes master password inputs before sending', async () => {
