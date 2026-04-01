@@ -1,6 +1,7 @@
 /** @typedef {import('bare')} */ /* global BareKit */
 import RPC from 'bare-rpc'
 import FramedStream from 'framed-stream'
+import Suspendify from 'suspendify'
 
 import { API, API_BY_VALUE } from './api'
 import {
@@ -1051,19 +1052,31 @@ export const setupIPC = () => {
   // eslint-disable-next-line no-undef
   if (typeof Bare !== 'undefined') {
     workletLogger.log('Bare lifecycle events detected')
+
+    const sus = new Suspendify({
+      async suspend () {
+        workletLogger.log('Suspendify suspending instances')
+        await suspendAllInstances()
+        workletLogger.log('Instances suspended successfully')
+      },
+      async resume () {
+        workletLogger.log('Suspendify resuming instances')
+        await resumeAllInstances()
+        workletLogger.log('Instances resumed successfully')
+      }
+    })
+
     // eslint-disable-next-line no-undef
-    Bare.on('suspend', () => {
-      workletLogger.log('Bare suspend event detected')
-      suspendAllInstances()
-        .catch(() => workletLogger.error('Error suspending instances'))
-        .then(() => workletLogger.log('Instances suspended successfully'))
+    Bare.on('suspend', function (linger) {
+      linger = Math.max(linger - 20_000, 0)
+      workletLogger.log('Bare suspend, linger', linger)
+      workletLogger.log('Asking suspendify to suspend')
+      sus.suspend(linger)
     })
     // eslint-disable-next-line no-undef
-    Bare.on('resume', () => {
+    Bare.on('resume', function () {
       workletLogger.log('Bare resume event detected')
-      resumeAllInstances()
-        .catch(() => workletLogger.error('Error resuming instances'))
-        .then(() => workletLogger.log('Instances resumed successfully'))
+      sus.resume()
     })
   }
 

@@ -121,11 +121,19 @@ export const getEncryptionInstance = () => encryptionInstance
 export const suspendAllInstances = async () => {
   const tasks = []
 
-  tasks.push(activeVaultInstance?.suspend?.())
-  tasks.push(vaultsInstance?.suspend?.())
-  tasks.push(encryptionInstance?.suspend?.())
+  if (activeVaultInstance) {
+    workletLogger.log('Suspending active vault instance')
+    await activeVaultInstance.suspend?.()
+  }
+  if (vaultsInstance) {
+    workletLogger.log('Suspending vaults instance')
+    await vaultsInstance.suspend?.()
+  }
+  if (encryptionInstance) {
+    workletLogger.log('Suspending encryption instance')
+    await encryptionInstance.suspend?.()
+  }
 
-  await Promise.allSettled(tasks)
 }
 
 /**
