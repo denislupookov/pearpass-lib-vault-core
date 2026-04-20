@@ -255,6 +255,13 @@ export const initInstance = async ({ path, hashedPassword, encryptionKey }) => {
   try {
     const fullPath = buildPath(path)
 
+    // Pre-create the directory tree Corestore needs. Without this there's a
+    // race during Corestore.ready() on cold installs (notably on iOS App Group
+    // containers): RocksDB's non-recursive mkdir on `db/` can run before
+    // DeviceFile's recursive mkdir creates the parent, causing ENOENT with
+    // "While mkdir if missing: <path>/db: No such file or directory".
+    await fs.promises.mkdir(barePath.join(fullPath, 'db'), { recursive: true })
+
     const store = new Corestore(fullPath, CORE_STORE_OPTIONS)
 
     if (!store) {
@@ -301,6 +308,10 @@ export const initInstanceWithNewBlindEncryption = async ({
     }
 
     const fullPath = buildPath(path)
+
+    // Same rationale as initInstance — pre-create Corestore's directory tree
+    // to avoid an ENOENT race during Corestore.ready() on cold installs.
+    await fs.promises.mkdir(barePath.join(fullPath, 'db'), { recursive: true })
 
     const store = new Corestore(fullPath, CORE_STORE_OPTIONS)
 
