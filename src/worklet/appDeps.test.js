@@ -545,6 +545,18 @@ describe('appDeps module functions (excluding encryption)', () => {
     })
   })
 
+  describe('exportOtpRecords', () => {
+    afterEach(async () => {
+      await appDeps.closeAllInstances()
+    })
+
+    test('throws if vault not initialised', async () => {
+      await expect(appDeps.exportOtpRecords()).rejects.toThrow(
+        'Vault not initialised'
+      )
+    })
+  })
+
   describe('activeVaultGetWriterKey', () => {
     afterEach(async () => {
       await appDeps.closeAllInstances()

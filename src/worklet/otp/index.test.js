@@ -6,7 +6,8 @@ import {
   generateTOTP,
   generateHOTP,
   normalizeOtpSecret,
-  filterDuplicateRecords
+  filterDuplicateRecords,
+  toExportableOtpRecords
 } from './index'
 
 describe('isOtpauthUri', () => {
@@ -268,5 +269,56 @@ describe('filterDuplicateRecords', () => {
     expect(filterDuplicateRecords('JBSWY3DPEHPK3PXP', recs)).toEqual([
       { id: 'a', title: '' }
     ])
+  })
+})
+
+describe('toExportableOtpRecords', () => {
+  const otp = {
+    secret: 'JBSWY3DPEHPK3PXP',
+    type: 'TOTP',
+    algorithm: 'SHA1',
+    digits: 6,
+    period: 30
+  }
+
+  it('returns only records that carry an OTP secret', () => {
+    const recs = [
+      { id: 'r1', type: 'login', data: { title: 'GitHub', otp } },
+      { id: 'r2', type: 'login', data: { title: 'No OTP' } },
+      { id: 'r3', type: 'note', data: { title: 'Note' } },
+      { id: 'r4', type: 'login', data: { title: 'Empty', otp: { secret: '' } } }
+    ]
+    const result = toExportableOtpRecords(recs)
+    expect(result).toHaveLength(1)
+    expect(result[0].id).toBe('r1')
+  })
+
+  it('exposes only title, username and otp — never other fields', () => {
+    const recs = [
+      {
+        id: 'r1',
+        type: 'login',
+        data: {
+          title: 'GitHub',
+          username: 'u1',
+          password: 'should-not-leak',
+          note: 'secret note',
+          otp
+        }
+      }
+    ]
+    const result = toExportableOtpRecords(recs)
+    expect(result[0]).toEqual({
+      id: 'r1',
+      type: 'login',
+      data: { title: 'GitHub', username: 'u1', otp }
+    })
+    expect(result[0].data).not.toHaveProperty('password')
+    expect(result[0].data).not.toHaveProperty('note')
+  })
+
+  it('returns an empty array for non-array input', () => {
+    expect(toExportableOtpRecords(undefined)).toEqual([])
+    expect(toExportableOtpRecords(null)).toEqual([])
   })
 })

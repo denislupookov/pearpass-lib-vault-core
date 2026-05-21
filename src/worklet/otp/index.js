@@ -154,3 +154,30 @@ export const filterDuplicateRecords = (targetSecret, records, options = {}) => {
   }
   return matches
 }
+
+/**
+ * @param {Array<{ id?: string, type?: string, data?: object }>} records
+ * @returns {Array<{
+ *   id: string,
+ *   type: string,
+ *   data: { title?: string, username?: string, otp: object }
+ * }>}
+ */
+export const toExportableOtpRecords = (records) => {
+  if (!Array.isArray(records)) return []
+
+  const exported = []
+  for (const record of records) {
+    if (!record?.data?.otp?.secret) continue
+    exported.push({
+      id: record.id,
+      type: record.type,
+      data: {
+        title: record.data.title,
+        username: record.data.username,
+        otp: record.data.otp
+      }
+    })
+  }
+  return exported
+}

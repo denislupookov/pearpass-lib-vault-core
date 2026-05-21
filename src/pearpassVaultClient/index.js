@@ -1016,6 +1016,19 @@ export class PearpassVaultClient extends EventEmitter {
   }
 
   /**
+   * @returns {Promise<Array<{
+   *   id: string,
+   *   type: string,
+   *   data: { title?: string, username?: string, otp: object }
+   * }>>}
+   */
+  async exportOtpRecords() {
+    return this._handleRequest({
+      command: API.EXPORT_OTP_RECORDS
+    })
+  }
+
+  /**
    * Adds an OTP configuration to a record.
    * @param {string} recordId
    * @param {string} otpInput - otpauth:// URI or raw Base32 secret
