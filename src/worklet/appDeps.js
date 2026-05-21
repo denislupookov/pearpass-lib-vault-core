@@ -12,7 +12,8 @@ import {
   generateTOTP,
   generateHOTP,
   parseOtpInput,
-  filterDuplicateRecords
+  filterDuplicateRecords,
+  toExportableOtpRecords
 } from './otp/index'
 import { PearPassPairer } from './pearpassPairer'
 import { RateLimiter } from './rateLimiter'
@@ -1543,4 +1544,23 @@ export const findOtpDuplicates = async ({ secret, excludeRecordId } = {}) => {
   )
 
   return filterDuplicateRecords(secret, records, { excludeRecordId })
+}
+
+/**
+ * @returns {Promise<Array<{
+ *   id: string,
+ *   type: string,
+ *   data: { title?: string, username?: string, otp: object }
+ * }>>}
+ */
+export const exportOtpRecords = async () => {
+  if (!isActiveVaultInitialized) {
+    throw new Error('Vault not initialised')
+  }
+
+  const records = await collectValuesByFilter(activeVaultInstance, (key) =>
+    key?.startsWith('record/')
+  )
+
+  return toExportableOtpRecords(records)
 }
