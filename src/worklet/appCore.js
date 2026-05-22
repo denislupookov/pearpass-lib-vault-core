@@ -71,6 +71,7 @@ import { encryptExportData, decryptExportData } from './exportDataEncryption'
 import { faviconManager } from './faviconManager'
 import { getDecryptionKey } from './getDecryptionKey'
 import { hashPassword } from './hashPassword'
+import { keepassArgon2 } from './keepassArgon2'
 import { masterPasswordManager } from './masterPasswordManager'
 import {
   personalSwarmInit,
@@ -1020,6 +1021,21 @@ export const handleRpcCommand = async (req) => {
         req.reply(
           JSON.stringify({
             error: `Error decrypting Proton export: ${error.message || error}`
+          })
+        )
+      }
+
+      break
+
+    case API.ENCRYPTION_KEEPASS_ARGON2:
+      try {
+        const derivedKey = keepassArgon2(requestData)
+
+        req.reply(JSON.stringify({ data: derivedKey }))
+      } catch (error) {
+        req.reply(
+          JSON.stringify({
+            error: `Error deriving KeePass key: ${error.message || error}`
           })
         )
       }
