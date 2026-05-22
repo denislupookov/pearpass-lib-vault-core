@@ -995,6 +995,29 @@ export class PearpassVaultClient extends EventEmitter {
   }
 
   /**
+   * Runs the Argon2 KDF for a KeePass (KDBX 4) database inside the Bare
+   * worklet, keeping the memory-hard derivation off the React Native JS
+   * thread. kdbxweb calls this via its `setArgon2Impl` hook.
+   *
+   * @param {Object} params
+   * @param {string} params.password    - base64-encoded password bytes
+   * @param {string} params.salt        - base64-encoded KDF salt
+   * @param {'argon2d'|'argon2id'} params.type
+   * @param {number} params.memory      - memory cost in KiB
+   * @param {number} params.iterations  - time cost (passes)
+   * @param {number} params.parallelism - lanes
+   * @param {number} params.length      - derived key length in bytes
+   * @param {number} params.version     - Argon2 version (0x10 or 0x13)
+   * @returns {Promise<string>} base64-encoded derived key
+   */
+  async keepassArgon2(params) {
+    return this._handleRequest({
+      command: API.ENCRYPTION_KEEPASS_ARGON2,
+      data: params
+    })
+  }
+
+  /**
    * Generates OTP codes for a list of record IDs.
    * @param {string[]} recordIds
    * @returns {Promise<Array<{ recordId: string, code: string, timeRemaining?: number }>>}
